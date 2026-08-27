@@ -47,9 +47,8 @@ module.exports = {
         await member.send({ embeds: [embed] });
         sent++;
       } catch {
-        failed++; // DMs closed, blocked bot, etc.
+        failed++;
       }
-      // Small delay to avoid rate limits on large servers
       await new Promise(r => setTimeout(r, 300));
     }
 
@@ -57,3 +56,5 @@ module.exports = {
       content: `✅ Mass DM complete. Sent: **${sent}** | Failed (DMs closed/blocked): **${failed}**`,
       ephemeral: true,
     });
+  },
+};
