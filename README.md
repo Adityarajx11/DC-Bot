@@ -1,49 +1,88 @@
-# My Discord Bot — Starter (Voice Alerts + Mass DM)
+# DC-Bot
 
-This is the foundation for your custom bot. It's structured so you can drop in
-more features later (tickets, mod panel, TTS, music) as new files in
-`/commands` and `/events` without touching the core.
+A starter Discord bot with voice alerts, mass DM, and a modular command/event structure so you can extend it with music, moderation, tickets, and other features.
 
-## What's included
-- 🔊 **Voice join/leave/switch alerts** — posts an embed in a chosen text channel
-  whenever someone joins, leaves, or switches voice channels.
-- 📨 **`/massdm`** — owner/admin-only command to DM every human member in the server.
+## Features
 
-## 1. Create the bot application
-1. Go to https://discord.com/developers/applications → **New Application**
-2. Go to **Bot** tab → click **Reset Token** → copy it (this is your `BOT_TOKEN`)
-3. Under **Privileged Gateway Intents**, enable:
-   - Server Members Intent
-   - Message Content Intent (optional, only needed if you add text-based features later)
-4. Go to **OAuth2 → URL Generator**:
-   - Scopes: `bot`, `applications.commands`
-   - Bot Permissions: `Send Messages`, `Embed Links`, `View Channels`, `Read Message History`
-   - Copy the generated URL and open it to invite the bot to your server
+- 🔊 Voice join/leave/switch alerts (posts an embed in a configured text channel)
+- 📨 `/massdm` — owner/admin-only command to DM every human member in the server
+- ⚙️ Modular commands and events: add files under `/commands` and `/events`
 
-## 2. Get your IDs
-Enable Developer Mode in Discord (Settings → Advanced → Developer Mode), then:
-- Right-click your server icon → **Copy Server ID** → `GUILD_ID`
-- Right-click your bot's application in the Developer Portal → **Application ID** → `CLIENT_ID`
-- Right-click the text channel for voice logs → **Copy Channel ID** → `VOICE_LOG_CHANNEL_ID`
-- Right-click your own username → **Copy User ID** → `OWNER_IDS` (comma-separate for multiple)
+## Requirements
 
-## 3. Configure
+- Node.js 18+ (or the version required by your dependencies)
+- A Discord bot application and token
+
+## Quickstart
+
+1. Clone the repository
+
 ```bash
-cp .env.example .env
+git clone https://github.com/adixlucifer0011/DC-Bot.git
+cd DC-Bot
 ```
-Fill in `BOT_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `VOICE_LOG_CHANNEL_ID`, `OWNER_IDS` in `.env`.
 
-## 4. Install & run
+2. Install dependencies
+
 ```bash
 npm install
-npm run deploy   # registers the /massdm slash command
+```
+
+3. Copy the example environment file and fill in values
+
+```bash
+cp .env.example .env
+# Then edit .env and set BOT_TOKEN, CLIENT_ID, GUILD_ID, VOICE_LOG_CHANNEL_ID, OWNER_IDS, etc.
+```
+
+4. Register slash commands and start the bot
+
+```bash
+npm run deploy   # registers slash commands (e.g., /massdm)
 npm start        # starts the bot
 ```
 
+## Configuration (.env)
+
+Set the following (examples):
+
+- BOT_TOKEN=your_bot_token
+- CLIENT_ID=your_application_client_id
+- GUILD_ID=your_guild_id
+- VOICE_LOG_CHANNEL_ID=channel_id_for_voice_logs
+- OWNER_IDS=comma,separated,owner,ids
+
+## Available commands (examples)
+
+- `/massdm` — DM all human members (owner/admin restricted)
+- Voice alerts are automatic once VOICE_LOG_CHANNEL_ID is set and the bot has required permissions
+
+If you add new command files under `/commands`, re-run `npm run deploy` to register them.
+
+## How the project is organized
+
+- /commands — Slash command modules
+- /events — Event handlers (e.g., voiceStateUpdate.js)
+- /lib — Shared libraries and helpers (e.g., musicManager.js)
+- index.js / main bot entry — boots the client and loads commands/events
+
 ## Notes
-- YouTube link previews (like the "Rapid Panel" video card you saw) are **native
-  Discord behavior** — any youtu.be/youtube.com link auto-embeds. No bot code needed.
-- To add a new command: create a file in `/commands` following the pattern in
-  `massdm.js`, then run `npm run deploy` again.
-- To add a new event: create a file in `/events` following the pattern in
-  `voiceStateUpdate.js`.
+
+- Discord automatically embeds YouTube links (no bot code required for previews).
+- When adding commands, follow the patterns in the existing `/commands` files and use `npm run deploy` to register them.
+
+## Changelog
+
+- 2026-08-28 — Fixed invalid URL bug in music playback (defensive checks & logging)
+
+## Contributing
+
+Contributions are welcome. Suggested workflow:
+
+1. Fork the repo
+2. Create a feature branch
+3. Open a Pull Request with a clear description of changes
+
+## License
+
+MIT — see LICENSE (if present) or add one if you want to publish this project.
