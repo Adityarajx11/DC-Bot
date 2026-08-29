@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getQueue } = require('../lib/musicManager');
+const { getManager } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -16,14 +16,12 @@ module.exports = {
         )),
 
   async execute(interaction) {
-    const queue = getQueue(interaction.guild.id);
-    if (!queue) {
+    const player = getManager().getPlayer(interaction.guild.id);
+    if (!player) {
       return interaction.reply({ content: '🚫 Nothing is playing.', ephemeral: true });
     }
-
     const mode = interaction.options.getString('mode');
-    queue.loopMode = mode;
-
+    player.setRepeatMode(mode);
     return interaction.reply(`🔁 Loop mode set to **${mode}**.`);
   },
 };

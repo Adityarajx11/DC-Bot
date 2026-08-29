@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { destroyQueue } = require('../lib/musicManager');
+const { getManager } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,7 +7,8 @@ module.exports = {
     .setDescription('Disconnect the bot from voice and clear the queue'),
 
   async execute(interaction) {
-    destroyQueue(interaction.guild.id);
+    const player = getManager().getPlayer(interaction.guild.id);
+    if (player) await player.destroy();
     return interaction.reply('👋 Left the voice channel.');
   },
 };

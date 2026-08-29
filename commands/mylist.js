@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUserPlaylist, addToPlaylist, removeFromPlaylist } = require('../lib/playlistStore');
-const { getQueue, createQueue, playSong, resolveSong } = require('../lib/musicManager');
+const { getOrCreatePlayer, searchTrack } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -30,11 +30,11 @@ module.exports = {
     if (sub === 'add') {
       await interaction.deferReply();
       const query = interaction.options.getString('song');
-      const song = await resolveSong(query, interaction.user.tag);
-      if (!song) return interaction.editReply('❌ Couldn\'t find that song.');
+      const track = await searchTrack(query, interaction.user.tag);
+      if (!track) return interaction.editReply('❌ Couldn\'t find that song.');
 
-      addToPlaylist(userId, song);
-      return interaction.editReply(`✅ Added **${song.title}** to your saved playlist.`);
+      addToPlaylist(userId, { title: track.info.title, url: track.info.uri, requestedBy: interaction.user.tag });
+      return interaction.editReply(`✅ Added **${track.info.title}** to your saved playlist.`);
     }
 
     if (sub === 'show') {
@@ -42,13 +42,11 @@ module.exports = {
       if (list.length === 0) {
         return interaction.reply({ content: '📭 Your playlist is empty. Add songs with `/mylist add`.', ephemeral: true });
       }
-
       const text = list.map((s, i) => `${i + 1}. **${s.title}**`).join('\n');
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle(`🎶 ${interaction.user.username}'s Playlist`)
         .setDescription(text.slice(0, 4000));
-
       return interaction.reply({ embeds: [embed] });
     }
 
@@ -66,7 +64,6 @@ module.exports = {
       if (!voiceChannel) {
         return interaction.reply({ content: '🚫 Join a voice channel first.', ephemeral: true });
       }
-
       const list = getUserPlaylist(userId);
       if (list.length === 0) {
         return interaction.reply({ content: '📭 Your playlist is empty.', ephemeral: true });
@@ -74,19 +71,23 @@ module.exports = {
 
       await interaction.deferReply();
 
-      let queue = getQueue(interaction.guild.id);
-      if (!queue) {
-        queue = createQueue(interaction.guild.id, voiceChannel, interaction.channel);
+      const player = getOrCreatePlayer(interaction);
+      if (!player.connected) await player.connect();
+
+      let added = 0;
+      for (const song of list) {
+        const track = await searchTrack(song.url, interaction.user.tag);
+        if (track) {
+          player.queue.add(track);
+          added++;
+        }
       }
 
-      const wasEmpty = queue.songs.length === 0;
-      queue.songs.push(...list);
-
-      if (wasEmpty) {
-        await playSong(interaction.guild.id, queue.songs[0]);
+      if (!player.playing && !player.paused && added > 0) {
+        await player.play();
       }
 
-      return interaction.editReply(`➕ Queued ${list.length} song(s) from your saved playlist.`);
+      return interaction.editReply(`➕ Queued ${added} song(s) from your saved playlist.`);
     }
   },
 };
