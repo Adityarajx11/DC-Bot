@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getQueue } = require('../lib/musicManager');
+const { getManager } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,12 +7,11 @@ module.exports = {
     .setDescription('Skip the current song'),
 
   async execute(interaction) {
-    const queue = getQueue(interaction.guild.id);
-    if (!queue || queue.songs.length === 0) {
+    const player = getManager().getPlayer(interaction.guild.id);
+    if (!player || !player.queue.current) {
       return interaction.reply({ content: '🚫 Nothing is playing.', ephemeral: true });
     }
-
-    queue.player.stop();
+    await player.skip();
     return interaction.reply('⏭️ Skipped.');
   },
 };

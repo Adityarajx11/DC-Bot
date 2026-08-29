@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getQueue } = require('../lib/musicManager');
+const { getManager } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,14 +7,12 @@ module.exports = {
     .setDescription('Stop playback and clear the queue'),
 
   async execute(interaction) {
-    const queue = getQueue(interaction.guild.id);
-    if (!queue) {
+    const player = getManager().getPlayer(interaction.guild.id);
+    if (!player) {
       return interaction.reply({ content: '🚫 Nothing is playing.', ephemeral: true });
     }
-
-    queue.songs = [];
-    queue.loopMode = 'off';
-    queue.player.stop();
+    player.queue.tracks.splice(0, player.queue.tracks.length);
+    await player.stopPlaying(true);
     return interaction.reply('⏹️ Stopped and cleared the queue.');
   },
 };

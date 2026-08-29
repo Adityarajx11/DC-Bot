@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getQueue } = require('../lib/musicManager');
+const { getManager } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,22 +7,20 @@ module.exports = {
     .setDescription('Show the currently playing song'),
 
   async execute(interaction) {
-    const queue = getQueue(interaction.guild.id);
-    if (!queue || queue.songs.length === 0) {
+    const player = getManager().getPlayer(interaction.guild.id);
+    if (!player || !player.queue.current) {
       return interaction.reply({ content: '📭 Nothing is playing.', ephemeral: true });
     }
-
-    const song = queue.songs[0];
+    const track = player.queue.current;
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('🎵 Now Playing')
-      .setDescription(`**${song.title}**`)
+      .setDescription(`**${track.info.title}**`)
       .addFields(
-        { name: 'Requested by', value: song.requestedBy, inline: true },
-        { name: 'Loop', value: queue.loopMode, inline: true },
-        { name: 'Volume', value: `${Math.round(queue.volume * 100)}%`, inline: true },
+        { name: 'Requested by', value: `${track.requester}`, inline: true },
+        { name: 'Loop', value: player.repeatMode, inline: true },
+        { name: 'Volume', value: `${player.volume}%`, inline: true },
       );
-
     return interaction.reply({ embeds: [embed] });
   },
 };

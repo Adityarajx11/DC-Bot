@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getQueue, createQueue, playSong, resolveSong } = require('../lib/musicManager');
+const { getOrCreatePlayer, searchTrack } = require('../lib/lavalink');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,24 +19,22 @@ module.exports = {
     await interaction.deferReply();
 
     const query = interaction.options.getString('song');
-    const song = await resolveSong(query, interaction.user.tag);
+    const track = await searchTrack(query, interaction.user.tag);
 
-    if (!song) {
+    if (!track) {
       return interaction.editReply('❌ Couldn\'t find that song.');
     }
 
-    let queue = getQueue(interaction.guild.id);
-    if (!queue) {
-      queue = createQueue(interaction.guild.id, voiceChannel, interaction.channel);
-    }
+    const player = getOrCreatePlayer(interaction);
+    if (!player.connected) await player.connect();
 
-    queue.songs.push(song);
+    player.queue.add(track);
 
-    if (queue.songs.length === 1) {
-      await playSong(interaction.guild.id, song);
-      return interaction.editReply(`🎶 Loading **${song.title}**...`);
+    if (!player.playing && !player.paused) {
+      await player.play();
+      return interaction.editReply(`🎶 Loading **${track.info.title}**...`);
     } else {
-      return interaction.editReply(`➕ Added to queue: **${song.title}** (position ${queue.songs.length})`);
+      return interaction.editReply(`➕ Added to queue: **${track.info.title}** (position ${player.queue.tracks.length})`);
     }
   },
 };
