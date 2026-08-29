@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { attachLavalink } = require('./lib/lavalink');
 
 const client = new Client({
   intents: [
@@ -11,6 +12,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
   ],
 });
+
+attachLavalink(client);
 
 // ---- Load slash commands from /commands ----
 client.commands = new Collection();
