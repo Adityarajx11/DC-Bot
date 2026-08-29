@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
+const { getGuildSettings } = require('../lib/guildSettings');
 
-// Dark red theme across all voice events
-const THEME_COLOR = 0x8B0000; // dark red
+const THEME_COLOR = 0x8B0000;
 
 function buildEmbed({ name, avatar, action, emoji, channelName, memberCount, footerIcon }) {
   return new EmbedBuilder()
@@ -21,7 +21,8 @@ function buildEmbed({ name, avatar, action, emoji, channelName, memberCount, foo
 module.exports = {
   name: 'voiceStateUpdate',
   async execute(oldState, newState) {
-    const logChannelId = process.env.VOICE_LOG_CHANNEL_ID;
+    const settings = getGuildSettings(newState.guild.id);
+    const logChannelId = settings.voiceLogChannelId;
     if (!logChannelId) return;
 
     const channel = newState.guild.channels.cache.get(logChannelId);
@@ -36,8 +37,7 @@ module.exports = {
 
     if (!oldState.channelId && newState.channelId) {
       embed = buildEmbed({
-        name,
-        avatar,
+        name, avatar,
         action: `joined **${newState.channel.name}**`,
         emoji: '🔊',
         channelName: newState.channel.name,
@@ -47,8 +47,7 @@ module.exports = {
     }
     else if (oldState.channelId && !newState.channelId) {
       embed = buildEmbed({
-        name,
-        avatar,
+        name, avatar,
         action: `left **${oldState.channel.name}**`,
         emoji: '🔇',
         channelName: oldState.channel.name,
@@ -58,8 +57,7 @@ module.exports = {
     }
     else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
       embed = buildEmbed({
-        name,
-        avatar,
+        name, avatar,
         action: `moved from **${oldState.channel.name}** to **${newState.channel.name}**`,
         emoji: '↔️',
         channelName: newState.channel.name,
@@ -73,7 +71,7 @@ module.exports = {
     try {
       await channel.send({ embeds: [embed] });
     } catch (err) {
-      console.error('⚠️ Could not send voice alert (check bot permissions in that channel):', err.message);
+      console.error('⚠️ Could not send voice alert:', err.message);
     }
   },
 };
