@@ -1,5 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
-const { getUserXp, upsertUserXp, getLevelRoles } = require('../lib/db');
+const { getUserXp, upsertUserXp, getLevelRoles, getLevelConfig } = require('../lib/db');
 const { calculateLevelUp, isOnCooldown } = require('../lib/leveling');
 
 module.exports = {
@@ -12,15 +11,21 @@ module.exports = {
     const currentXp = existing?.xp || 0;
     const currentLevel = existing?.level || 0;
 
-    const earnedXp = Math.floor(Math.random() * 11) + 15; // 15-25 xp per message
+    const earnedXp = Math.floor(Math.random() * 11) + 15;
     const { xp, level, levelsGained } = calculateLevelUp(currentXp, currentLevel, earnedXp);
 
     await upsertUserXp(message.guild.id, message.author.id, xp, level, new Date());
 
     if (levelsGained > 0) {
-      message.channel.send({
-        content: `🎉 ${message.author} leveled up to **Level ${level}**!`,
-      }).catch(() => {});
+      const config = await getLevelConfig(message.guild.id);
+      const template = config?.message_template || '🎉 {user} leveled up to **Level {level}**!';
+      const text = template.replaceAll('{user}', `${message.author}`).replaceAll('{level}', `${level}`);
+
+      const targetChannel = config?.channel_id
+        ? message.guild.channels.cache.get(config.channel_id)
+        : message.channel;
+
+      targetChannel?.send({ content: text }).catch(() => {});
 
       const levelRoles = await getLevelRoles(message.guild.id);
       const roleToGrant = levelRoles.filter(r => r.level <= level).sort((a, b) => b.level - a.level)[0];
