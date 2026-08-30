@@ -69,6 +69,37 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
   }
+
+  if (interaction.isButton() && interaction.customId.startsWith('poll_')) {
+    const { handlePollButton } = require('./lib/pollButtons');
+    try {
+      await handlePollButton(interaction);
+    } catch (err) {
+      console.error('Poll button error:', err);
+      const errMsg = { content: '⚠️ Something went wrong with that vote.', ephemeral: true };
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(errMsg).catch(() => {});
+      } else {
+        await interaction.reply(errMsg).catch(() => {});
+      }
+    }
+    return;
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith('selfrole_')) {
+    const { handleSelfRoleSelect } = require('./lib/selfRoleMenu');
+    try {
+      await handleSelfRoleSelect(interaction);
+    } catch (err) {
+      console.error('Self-role menu error:', err);
+      const errMsg = { content: '⚠️ Something went wrong updating your roles.', ephemeral: true };
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(errMsg).catch(() => {});
+      } else {
+        await interaction.reply(errMsg).catch(() => {});
+      }
+    }
+  }
 });
 
 client.login(process.env.BOT_TOKEN);
