@@ -26,7 +26,8 @@ module.exports = {
       sub.setName('addcategory')
         .setDescription('Add a ticket category option')
         .addStringOption(opt => opt.setName('label').setDescription('Category label').setRequired(true))
-        .addStringOption(opt => opt.setName('emoji').setDescription('Optional emoji'))) 
+        .addStringOption(opt => opt.setName('emoji').setDescription('Optional emoji'))
+        .addStringOption(opt => opt.setName('description').setDescription('Optional category description')))
     .addSubcommand(sub =>
       sub.setName('removecategory')
         .setDescription('Remove a ticket category option')
@@ -34,6 +35,10 @@ module.exports = {
     .addSubcommand(sub =>
       sub.setName('resetcategories')
         .setDescription('Clear all ticket category options'))
+    .addSubcommand(sub =>
+      sub.setName('addbanner')
+        .setDescription('Set the banner image for the ticket panel')
+        .addStringOption(opt => opt.setName('url').setDescription('Image URL').setRequired(true)))
     .addSubcommand(sub =>
       sub.setName('view')
         .setDescription('View current ticket configuration')),
@@ -69,9 +74,10 @@ module.exports = {
     if (sub === 'addcategory') {
       const label = interaction.options.getString('label');
       const emoji = interaction.options.getString('emoji') || null;
+      const description = interaction.options.getString('description') || null;
       const cfg = await getConfig(guildId) || { categories: [] };
       const categories = cfg.categories || [];
-      categories.push({ label, emoji });
+      categories.push({ label, emoji, description });
       await setConfig(guildId, { categories });
       return interaction.reply({ content: `✅ Added category **${label}**.`, ephemeral: true });
     }
@@ -89,6 +95,12 @@ module.exports = {
       return interaction.reply({ content: `🗑️ All ticket categories cleared. Use /ticketsetup addcategory to add fresh ones.`, ephemeral: true });
     }
 
+    if (sub === 'addbanner') {
+      const url = interaction.options.getString('url');
+      await setConfig(guildId, { banner_url: url });
+      return interaction.reply({ content: `✅ Banner image set.`, ephemeral: true });
+    }
+
     if (sub === 'view') {
       const cfg = await getConfig(guildId) || {};
       const embed = new EmbedBuilder()
@@ -99,6 +111,7 @@ module.exports = {
           { name: 'Log Channel', value: cfg.log_channel_id ? `<#${cfg.log_channel_id}>` : 'Not set', inline: true },
           { name: 'Staff Role', value: cfg.staff_role_id ? `<@&${cfg.staff_role_id}>` : 'Not set', inline: true },
           { name: 'Max Tickets Per User', value: String(cfg.max_tickets_per_user || 1), inline: true },
+          { name: 'Banner URL', value: cfg.banner_url ? `[View](${cfg.banner_url})` : 'Not set', inline: true },
           { name: 'Categories', value: (cfg.categories || []).map(c => `${c.emoji ? c.emoji + ' ' : ''}${c.label}`).join('\n') || 'None configured' }
         );
       return interaction.reply({ embeds: [embed], ephemeral: true });
