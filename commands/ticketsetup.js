@@ -32,6 +32,9 @@ module.exports = {
         .setDescription('Remove a ticket category option')
         .addStringOption(opt => opt.setName('label').setDescription('Category label to remove').setRequired(true)))
     .addSubcommand(sub =>
+      sub.setName('resetcategories')
+        .setDescription('Clear all ticket category options'))
+    .addSubcommand(sub =>
       sub.setName('view')
         .setDescription('View current ticket configuration')),
 
@@ -79,6 +82,11 @@ module.exports = {
       const categories = (cfg.categories || []).filter(c => c.label !== label);
       await setConfig(guildId, { categories });
       return interaction.reply({ content: `☑️ Removed category **${label}**.`, ephemeral: true });
+    }
+
+    if (sub === 'resetcategories') {
+      await setConfig(guildId, { categories: [] });
+      return interaction.reply({ content: `🗑️ All ticket categories cleared. Use /ticketsetup addcategory to add fresh ones.`, ephemeral: true });
     }
 
     if (sub === 'view') {
