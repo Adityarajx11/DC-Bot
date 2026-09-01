@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction) {
     const current = get247(interaction.guild.id);
     const next = !current;
-    set247(interaction.guild.id, next);
+    await set247(interaction.guild.id, next);
 
     return interaction.reply(
       next
