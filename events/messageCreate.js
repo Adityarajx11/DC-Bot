@@ -1,5 +1,6 @@
 const { getUserXp, upsertUserXp, getLevelRoles, getLevelConfig } = require('../lib/db');
 const { calculateLevelUp, isOnCooldown } = require('../lib/leveling');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
   name: 'messageCreate',
@@ -25,7 +26,15 @@ module.exports = {
         ? message.guild.channels.cache.get(config.channel_id)
         : message.channel;
 
-      targetChannel?.send({ content: text }).catch(() => {});
+      const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('🎉 Level Up!')
+        .setDescription(template.replaceAll('{user}', message.author.toString()).replaceAll('{level}', level))
+        .setThumbnail(message.author.displayAvatarURL())
+        .setFooter({ text: 'RAVEN • Level Up', iconURL: message.client.user.displayAvatarURL() })
+        .setTimestamp();
+
+      targetChannel?.send({ content: text, embeds: [embed] }).catch(() => {});
 
       const levelRoles = await getLevelRoles(message.guild.id);
       const roleToGrant = levelRoles.filter(r => r.level <= level).sort((a, b) => b.level - a.level)[0];
