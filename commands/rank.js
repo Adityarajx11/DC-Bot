@@ -22,10 +22,16 @@ module.exports = {
     const bar = '█'.repeat(barLength) + '░'.repeat(10 - barLength);
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(0x3498DB)
       .setAuthor({ name: target.tag, iconURL: target.displayAvatarURL() })
       .setTitle(`🏆 Level ${data.level}`)
-      .setDescription(`${bar}\n${data.xp} / ${needed} XP (${percent}%)`);
+      .setThumbnail(target.displayAvatarURL())
+      .addFields(
+        { name: 'Level', value: `**${data.level}**`, inline: true },
+        { name: 'XP Progress', value: `${bar}\n${data.xp} / ${needed} XP (${percent}%)`, inline: false }
+      )
+      .setFooter({ text: 'RAVEN • Rank Card', iconURL: interaction.client.user.displayAvatarURL() })
+      .setTimestamp();
 
     return interaction.reply({ embeds: [embed] });
   },
