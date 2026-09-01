@@ -20,9 +20,12 @@ module.exports = {
     });
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(0x3498DB)
       .setTitle(`🏆 ${interaction.guild.name} Leaderboard`)
-      .setDescription(lines.join('\n'));
+      .setDescription(lines.join('\n'))
+      .setThumbnail(interaction.guild.iconURL())
+      .setFooter({ text: 'RAVEN • Leaderboard', iconURL: interaction.client.user.displayAvatarURL() })
+      .setTimestamp();
 
     return interaction.reply({ embeds: [embed] });
   },
