@@ -39,20 +39,44 @@ module.exports = {
       const channel = interaction.options.getChannel('channel');
       const message = interaction.options.getString('message') || '🎉 {user} leveled up to **Level {level}**!';
       await setLevelConfig(guildId, channel.id, message);
-      return interaction.reply(`✅ Level-up messages will now post in ${channel}.`);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('✅ Channel Updated')
+        .setDescription(`Level-up messages will now post in ${channel}.`)
+        .setFooter({ text: 'RAVEN • Leveling Config', iconURL: interaction.client.user.displayAvatarURL() })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'role') {
       const level = interaction.options.getInteger('level');
       const role = interaction.options.getRole('role');
       await addLevelRole(guildId, level, role.id);
-      return interaction.reply(`✅ Members will get **${role.name}** at level **${level}**.`);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('✅ Role Added')
+        .setDescription(`Members will get **${role.name}** at level **${level}**.`)
+        .setFooter({ text: 'RAVEN • Leveling Config', iconURL: interaction.client.user.displayAvatarURL() })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'removerole') {
       const level = interaction.options.getInteger('level');
       await removeLevelRole(guildId, level);
-      return interaction.reply(`☑️ Removed the level role for level **${level}**.`);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('☑️ Role Removed')
+        .setDescription(`Removed the level role for level **${level}**.`)
+        .setFooter({ text: 'RAVEN • Leveling Config', iconURL: interaction.client.user.displayAvatarURL() })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'show') {
@@ -61,13 +85,16 @@ module.exports = {
       const rolesText = roles.map(r => `Level ${r.level} → <@&${r.role_id}>`).join('\n') || 'None set';
 
       const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
+        .setColor(0x8B0000)
         .setTitle('🏆 Leveling Configuration')
         .addFields(
           { name: 'Announcement Channel', value: config?.channel_id ? `<#${config.channel_id}>` : 'Not set (uses message channel)' },
           { name: 'Message Template', value: config?.message_template || '🎉 {user} leveled up to **Level {level}**!' },
           { name: 'Level Roles', value: rolesText },
-        );
+        )
+        .setFooter({ text: 'RAVEN • Leveling Config', iconURL: interaction.client.user.displayAvatarURL() })
+        .setTimestamp();
+
       return interaction.reply({ embeds: [embed] });
     }
   },
