@@ -31,10 +31,10 @@ module.exports = {
 
         // Replace placeholders in welcome message
         let welcomeText = settings.welcomeMessage
-          .replace('{user}', `<@${member.id}>`)
-          .replace('{username}', member.user.username)
-          .replace('{server}', member.guild.name)
-          .replace('{membercount}', member.guild.memberCount);
+          .replaceAll('{user}', `<@${member.id}>`)
+          .replaceAll('{username}', member.user.username)
+          .replaceAll('{server}', member.guild.name)
+          .replaceAll('{membercount}', String(member.guild.memberCount));
 
         // Send message with welcome card
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome.png' });
