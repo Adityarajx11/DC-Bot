@@ -86,14 +86,14 @@ module.exports = {
 
     if (sub === 'voicelog') {
       const channel = interaction.options.getChannel('channel');
-      updateGuildSettings(guildId, { voiceLogChannelId: channel.id });
+      await updateGuildSettings(guildId, { voiceLogChannelId: channel.id });
       return interaction.reply(`✅ Voice join/leave alerts will now post in ${channel}.`);
     }
 
     if (sub === 'youtube') {
       const channelId = interaction.options.getString('channel_id');
       const alertChannel = interaction.options.getChannel('alert_channel');
-      updateGuildSettings(guildId, {
+      await updateGuildSettings(guildId, {
         youtubeChannelId: channelId,
         liveAlertChannelId: alertChannel.id,
       });
@@ -103,26 +103,26 @@ module.exports = {
     if (sub === 'welcome') {
       const channel = interaction.options.getChannel('channel');
       const message = interaction.options.getString('message');
-      updateGuildSettings(guildId, { welcomeChannelId: channel.id, welcomeMessage: message });
+      await updateGuildSettings(guildId, { welcomeChannelId: channel.id, welcomeMessage: message });
       return interaction.reply(`✅ Welcome messages will post in ${channel}.`);
     }
 
     if (sub === 'autorole') {
       const role = interaction.options.getRole('role');
-      updateGuildSettings(guildId, { autoRoleId: role.id });
+      await updateGuildSettings(guildId, { autoRoleId: role.id });
       return interaction.reply(`✅ New members will automatically get **${role.name}**.`);
     }
 
     if (sub === 'selfroleadd') {
       const role = interaction.options.getRole('role');
       const category = interaction.options.getString('category');
-      addSelfRole(guildId, category, role.id);
+      await addSelfRole(guildId, category, role.id);
       return interaction.reply(`✅ **${role.name}** added to category **${category}**.`);
     }
 
     if (sub === 'selfroleremove') {
       const role = interaction.options.getRole('role');
-      const foundCategory = removeSelfRole(guildId, role.id);
+      const foundCategory = await removeSelfRole(guildId, role.id);
       if (!foundCategory) {
         return interaction.reply({ content: `❌ **${role.name}** wasn't in any self-assignable category.`, ephemeral: true });
       }
@@ -154,19 +154,19 @@ module.exports = {
     if (sub === 'disable') {
       const feature = interaction.options.getString('feature');
       if (feature === 'voicelog') {
-        updateGuildSettings(guildId, { voiceLogChannelId: null });
+        await updateGuildSettings(guildId, { voiceLogChannelId: null });
         return interaction.reply('☑️ Voice log alerts disabled.');
       }
       if (feature === 'youtube') {
-        updateGuildSettings(guildId, { youtubeChannelId: null, liveAlertChannelId: null });
+        await updateGuildSettings(guildId, { youtubeChannelId: null, liveAlertChannelId: null });
         return interaction.reply('☑️ YouTube live alerts disabled.');
       }
       if (feature === 'welcome') {
-        updateGuildSettings(guildId, { welcomeChannelId: null, welcomeMessage: null });
+        await updateGuildSettings(guildId, { welcomeChannelId: null, welcomeMessage: null });
         return interaction.reply('☑️ Welcome messages disabled.');
       }
       if (feature === 'autorole') {
-        updateGuildSettings(guildId, { autoRoleId: null });
+        await updateGuildSettings(guildId, { autoRoleId: null });
         return interaction.reply('☑️ Auto-role disabled.');
       }
     }
