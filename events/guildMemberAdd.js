@@ -6,7 +6,7 @@ module.exports = {
   name: 'guildMemberAdd',
   async execute(member) {
     const guildId = member.guild.id;
-    const settings = getGuildSettings(guildId);
+    const settings = await getGuildSettings(guildId);
 
     // Apply auto-role if configured
     if (settings.autoRoleId) {
