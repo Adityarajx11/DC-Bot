@@ -130,7 +130,7 @@ module.exports = {
     }
 
     if (sub === 'show') {
-      const settings = getGuildSettings(guildId);
+      const settings = await getGuildSettings(guildId);
       const categories = settings.selfRoleCategories || {};
       const categorySummary = Object.entries(categories)
         .map(([name, ids]) => `**${name}**: ${ids.length} role(s)`)
