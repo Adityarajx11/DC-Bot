@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Browse and pick self-assignable roles for this server'),
 
   async execute(interaction) {
-    const settings = getGuildSettings(interaction.guild.id);
+    const settings = await getGuildSettings(interaction.guild.id);
     const categories = settings.selfRoleCategories || {};
     const categoryNames = Object.keys(categories);
 
