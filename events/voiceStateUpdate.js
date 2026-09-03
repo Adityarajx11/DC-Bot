@@ -21,7 +21,7 @@ function buildEmbed({ name, avatar, action, emoji, channelName, memberCount, foo
 module.exports = {
   name: 'voiceStateUpdate',
   async execute(oldState, newState) {
-    const settings = getGuildSettings(newState.guild.id);
+    const settings = await getGuildSettings(newState.guild.id);
     const logChannelId = settings.voiceLogChannelId;
     if (!logChannelId) return;
 
