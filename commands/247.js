@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Toggle 24/7 mode so the bot never auto-leaves voice'),
 
   async execute(interaction) {
-    const current = get247(interaction.guild.id);
+    const current = await get247(interaction.guild.id);
     const next = !current;
     await set247(interaction.guild.id, next);
 
