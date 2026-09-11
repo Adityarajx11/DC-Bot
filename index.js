@@ -4,6 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { attachLavalink } = require('./lib/lavalink');
+const { GlobalFonts } = require('@napi-rs/canvas');
+
+// Register fonts for canvas text rendering
+GlobalFonts.registerFromPath(path.join(__dirname, './fonts/Inter-Regular.ttf'), 'Inter');
+GlobalFonts.registerFromPath(path.join(__dirname, './fonts/Inter-Bold.ttf'), 'Inter Bold');
 
 const client = new Client({
   intents: [
