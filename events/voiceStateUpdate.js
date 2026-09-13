@@ -144,7 +144,7 @@ async function handleVoiceGreeting(newState, settings) {
     // Wait for the connection to become ready before playing audio
     await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
     
-    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]
+    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our support team will be happy to help. Once again, welcome to Raven Modz, we are glad to have you!";
     
     // Generate and play TTS audio
     try {
