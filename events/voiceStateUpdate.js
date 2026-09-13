@@ -1,11 +1,8 @@
 const { EmbedBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, StreamType, entersState, VoiceConnectionStatus } = require('@discordjs/voice');
 const gtts = require('google-tts-api');
-const prism = require('prism-media');
-const ffmpegStatic = require('ffmpeg-static');
 const https = require('https');
-const { Readable } = require('stream');
 const { getGuildSettings } = require('../lib/guildSettings');
+const { getManager } = require('../lib/lavalink');
 
 const THEME_COLOR = 0x8B0000;
 const greetingInProgress = new Map(); // Prevent overlapping greetings per guild
@@ -59,34 +56,55 @@ function downloadAudio(url) {
   });
 }
 
-// Helper: play audio chunks sequentially
-async function playAudioSequence(connection, audioChunks) {
-  const player = createAudioPlayer();
-  connection.subscribe(player);
+// Helper: play audio chunks sequentially through Lavalink
+async function playAudioSequenceLavalink(player, audioUrls) {
+  const manager = getManager();
   
-  for (const audioBuffer of audioChunks) {
+  for (const audioUrl of audioUrls) {
     try {
-      // Convert buffer to readable stream for piping into ffmpeg
-      const audioStream = Readable.from(audioBuffer);
+      // Load the TTS audio URL as a track
+      const node = manager.nodeManager.leastUsedNodes()[0];
+      if (!node) throw new Error('No Lavalink node connected');
       
-      const ffmpeg = new prism.FFmpeg({
-        args: [
-          '-i', 'pipe:0',
-          '-f', 's16le',
-          '-ar', '48000',
-          '-ac', '2',
-          'pipe:1',
-        ],
-        executable: ffmpegStatic,
-      });
+      const res = await node.search({ query: audioUrl }, null);
+      if (!res || !res.tracks || res.tracks.length === 0) {
+        throw new Error(`Failed to load audio URL: ${audioUrl}`);
+      }
       
-      const resource = createAudioResource(audioStream.pipe(ffmpeg), { inputType: StreamType.Raw });
+      const track = res.tracks[0];
       
+      // Play the track and wait for it to finish
       await new Promise((resolve, reject) => {
-        player.play(resource);
-        player.once(AudioPlayerStatus.Idle, resolve);
-        player.once('error', reject);
-        setTimeout(() => reject(new Error('Audio playback timed out after 30 seconds')), 30000); // 30s timeout per chunk
+        player.queue.add(track);
+        
+        if (!player.playing) {
+          player.play();
+        }
+        
+        // Wait for track to finish
+        const trackEndHandler = () => {
+          manager.removeListener('trackEnd', trackEndHandler);
+          manager.removeListener('trackError', trackErrorHandler);
+          resolve();
+        };
+        
+        const trackErrorHandler = (p, track, payload) => {
+          if (p.guildId === player.guildId) {
+            manager.removeListener('trackEnd', trackEndHandler);
+            manager.removeListener('trackError', trackErrorHandler);
+            reject(new Error(`Track error: ${payload?.exception?.message || 'unknown'}`));
+          }
+        };
+        
+        manager.once('trackEnd', trackEndHandler);
+        manager.once('trackError', trackErrorHandler);
+        
+        // Timeout after 30 seconds per chunk
+        setTimeout(() => {
+          manager.removeListener('trackEnd', trackEndHandler);
+          manager.removeListener('trackError', trackErrorHandler);
+          reject(new Error('Audio playback timed out after 30 seconds'));
+        }, 30000);
       });
     } catch (err) {
       throw new Error(`Failed to play audio chunk: ${err.message}`);
@@ -94,10 +112,10 @@ async function playAudioSequence(connection, audioChunks) {
   }
 }
 
-// Helper: generate and download TTS audio chunks
-async function generateTTSAudio(text) {
+// Helper: generate TTS audio URLs (don't download, just get URLs)
+async function generateTTSAudioUrls(text) {
   const chunks = splitTextIntoChunks(text);
-  const audioChunks = [];
+  const audioUrls = [];
   
   for (const chunk of chunks) {
     try {
@@ -106,14 +124,13 @@ async function generateTTSAudio(text) {
         slow: false,
         host: 'https://translate.google.com',
       });
-      const audioBuffer = await downloadAudio(url);
-      audioChunks.push(audioBuffer);
+      audioUrls.push(url);
     } catch (err) {
       throw new Error(`Failed to generate TTS for chunk: ${err.message}`);
     }
   }
   
-  return audioChunks;
+  return audioUrls;
 }
 
 // Main greeting handler
@@ -132,24 +149,29 @@ async function handleVoiceGreeting(newState, settings) {
   if (!greetingVoiceChannelId || newState.channelId !== greetingVoiceChannelId) return;
   
   greetingInProgress.set(guildId, true);
+  let player = null;
   
   try {
-    // Join voice channel
-    const connection = joinVoiceChannel({
-      channelId: newState.channelId,
-      guildId: guildId,
-      adapterCreator: newState.guild.voiceAdapterCreator,
-    });
+    const manager = getManager();
+    if (!manager) throw new Error('Lavalink manager not initialized');
     
-    // Wait for the connection to become ready before playing audio
-    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    // Get or create a Lavalink player for this voice channel
+    let player = manager.getPlayer(guildId);
+    if (!player) {
+      player = manager.createPlayer({
+        guildId: guildId,
+        voiceChannelId: newState.channelId,
+        textChannelId: null, // No text channel needed for greeting
+        selfDeaf: true,
+      });
+    }
     
-    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our support team will be happy to help. Once again, welcome to Raven Modz, we are glad to have you!";
+    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]";
     
     // Generate and play TTS audio
     try {
-      const audioChunks = await generateTTSAudio(welcomeText);
-      await playAudioSequence(connection, audioChunks);
+      const audioUrls = await generateTTSAudioUrls(welcomeText);
+      await playAudioSequenceLavalink(player, audioUrls);
     } catch (audioErr) {
       console.error('⚠️ TTS playback failed, continuing with role assignment:', audioErr.message);
     }
@@ -167,11 +189,21 @@ async function handleVoiceGreeting(newState, settings) {
       }
     }
     
-    // Disconnect
-    connection.destroy();
-    console.log(`✅ Voice greeting completed for ${member.user.tag}`);
+    // Destroy the player to disconnect from voice
+    if (player) {
+      player.destroy();
+      console.log(`✅ Voice greeting completed and player destroyed for ${member.user.tag}`);
+    }
   } catch (err) {
     console.error('⚠️ Voice greeting failed:', err.message);
+    // Clean up player on error
+    if (player) {
+      try {
+        player.destroy();
+      } catch (destroyErr) {
+        console.error('⚠️ Failed to destroy player on error:', destroyErr.message);
+      }
+    }
   } finally {
     greetingInProgress.delete(guildId);
   }
