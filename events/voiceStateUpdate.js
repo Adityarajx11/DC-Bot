@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const gtts = require('google-tts-api');
 const https = require('https');
 const { getGuildSettings } = require('../lib/guildSettings');
-const { getManager } = require('../lib/lavalink');
+const { getManager, searchTrack } = require('../lib/lavalink');
 
 const THEME_COLOR = 0x8B0000;
 const greetingInProgress = new Map(); // Prevent overlapping greetings per guild
@@ -40,38 +40,17 @@ function splitTextIntoChunks(text) {
   return chunks;
 }
 
-// Helper: download audio from URL
-function downloadAudio(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`Failed to download audio: HTTP ${res.statusCode}`));
-        return;
-      }
-      const chunks = [];
-      res.on('data', chunk => chunks.push(chunk));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    }).on('error', reject);
-  });
-}
-
 // Helper: play audio chunks sequentially through Lavalink
 async function playAudioSequenceLavalink(player, audioUrls) {
   const manager = getManager();
   
   for (const audioUrl of audioUrls) {
     try {
-      // Load the TTS audio URL as a track
-      const node = manager.nodeManager.leastUsedNodes()[0];
-      if (!node) throw new Error('No Lavalink node connected');
-      
-      const res = await node.search({ query: audioUrl }, null);
-      if (!res || !res.tracks || res.tracks.length === 0) {
+      // Load the TTS audio URL as a track using searchTrack (same as music commands)
+      const track = await searchTrack(audioUrl, null);
+      if (!track) {
         throw new Error(`Failed to load audio URL: ${audioUrl}`);
       }
-      
-      const track = res.tracks[0];
       
       // Play the track and wait for it to finish
       await new Promise((resolve, reject) => {
@@ -156,7 +135,7 @@ async function handleVoiceGreeting(newState, settings) {
     if (!manager) throw new Error('Lavalink manager not initialized');
     
     // Get or create a Lavalink player for this voice channel
-    let player = manager.getPlayer(guildId);
+    player = manager.getPlayer(guildId);
     if (!player) {
       player = manager.createPlayer({
         guildId: guildId,
@@ -165,6 +144,9 @@ async function handleVoiceGreeting(newState, settings) {
         selfDeaf: true,
       });
     }
+    
+    // Connect player to voice channel (required before playing audio)
+    if (!player.connected) await player.connect();
     
     const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]";
     
