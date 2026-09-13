@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, StreamType } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, StreamType, entersState, VoiceConnectionStatus } = require('@discordjs/voice');
 const gtts = require('google-tts-api');
 const prism = require('prism-media');
 const ffmpegStatic = require('ffmpeg-static');
@@ -86,7 +86,7 @@ async function playAudioSequence(connection, audioChunks) {
         player.play(resource);
         player.once(AudioPlayerStatus.Idle, resolve);
         player.once('error', reject);
-        setTimeout(reject, 30000); // 30s timeout per chunk
+        setTimeout(() => reject(new Error('Audio playback timed out after 30 seconds')), 30000); // 30s timeout per chunk
       });
     } catch (err) {
       throw new Error(`Failed to play audio chunk: ${err.message}`);
@@ -141,7 +141,10 @@ async function handleVoiceGreeting(newState, settings) {
       adapterCreator: newState.guild.voiceAdapterCreator,
     });
     
-    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our support team will be happy to help. Once again, welcome to Raven Modz, we're glad to have you!";
+    // Wait for the connection to become ready before playing audio
+    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    
+    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]
     
     // Generate and play TTS audio
     try {
