@@ -176,6 +176,14 @@ async function handleVoiceGreeting(newState, settings) {
       player.destroy();
       console.log(`✅ Voice greeting completed and player destroyed for ${member.user.tag}`);
     }
+    
+    // Automatically disconnect the user from the greeting channel after bot leaves
+    try {
+      await member.voice.disconnect('Greeting completed - user auto-disconnected');
+      console.log(`✅ Auto-disconnected ${member.user.tag} from greeting channel`);
+    } catch (disconnectErr) {
+      console.error(`⚠️ Failed to auto-disconnect user: ${disconnectErr.message}`);
+    }
   } catch (err) {
     console.error('⚠️ Voice greeting failed:', err.message);
     // Clean up player on error
