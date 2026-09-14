@@ -44,7 +44,8 @@ function splitTextIntoChunks(text) {
 async function playAudioSequenceLavalink(player, audioUrls) {
   const manager = getManager();
   
-  for (const audioUrl of audioUrls) {
+  for (let i = 0; i < audioUrls.length; i++) {
+    const audioUrl = audioUrls[i];
     try {
       // Load the TTS audio URL as a track using searchTrack (same as music commands)
       const track = await searchTrack(audioUrl, null);
@@ -52,16 +53,23 @@ async function playAudioSequenceLavalink(player, audioUrls) {
         throw new Error(`Failed to load audio URL: ${audioUrl}`);
       }
       
+      console.log(`📢 TTS chunk ${i + 1}/${audioUrls.length} loaded, queuing for playback`);
+      
       // Play the track and wait for it to finish
       await new Promise((resolve, reject) => {
         player.queue.add(track);
         
-        if (!player.playing) {
+        // Only call play() for the first chunk; lavalink-client auto-advances
+        if (i === 0) {
+          console.log(`▶️ Starting playback of first TTS chunk`);
           player.play();
+        } else {
+          console.log(`⏳ Chunk ${i + 1} queued, waiting for auto-advance`);
         }
         
         // Wait for track to finish
         const trackEndHandler = () => {
+          console.log(`✅ TTS chunk ${i + 1} finished playing`);
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
           resolve();
@@ -69,6 +77,7 @@ async function playAudioSequenceLavalink(player, audioUrls) {
         
         const trackErrorHandler = (p, track, payload) => {
           if (p.guildId === player.guildId) {
+            console.error(`❌ TTS chunk ${i + 1} error: ${payload?.exception?.message || 'unknown'}`);
             manager.removeListener('trackEnd', trackEndHandler);
             manager.removeListener('trackError', trackErrorHandler);
             reject(new Error(`Track error: ${payload?.exception?.message || 'unknown'}`));
@@ -80,6 +89,7 @@ async function playAudioSequenceLavalink(player, audioUrls) {
         
         // Timeout after 30 seconds per chunk
         setTimeout(() => {
+          console.error(`⏱️ TTS chunk ${i + 1} timed out after 30 seconds`);
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
           reject(new Error('Audio playback timed out after 30 seconds'));
@@ -148,7 +158,7 @@ async function handleVoiceGreeting(newState, settings) {
     // Connect player to voice channel (required before playing audio)
     if (!player.connected) await player.connect();
     
-    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]";
+    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]
     
     // Generate and play TTS audio
     try {
@@ -173,23 +183,15 @@ async function handleVoiceGreeting(newState, settings) {
     
     // Destroy the player to disconnect from voice
     if (player) {
-      player.destroy();
+      await player.destroy();
       console.log(`✅ Voice greeting completed and player destroyed for ${member.user.tag}`);
-    }
-    
-    // Automatically disconnect the user from the greeting channel after bot leaves
-    try {
-      await member.voice.disconnect('Greeting completed - user auto-disconnected');
-      console.log(`✅ Auto-disconnected ${member.user.tag} from greeting channel`);
-    } catch (disconnectErr) {
-      console.error(`⚠️ Failed to auto-disconnect user: ${disconnectErr.message}`);
     }
   } catch (err) {
     console.error('⚠️ Voice greeting failed:', err.message);
     // Clean up player on error
     if (player) {
       try {
-        player.destroy();
+        await player.destroy();
       } catch (destroyErr) {
         console.error('⚠️ Failed to destroy player on error:', destroyErr.message);
       }
