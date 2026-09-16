@@ -41,11 +41,14 @@ function splitTextIntoChunks(text) {
 }
 
 // Helper: play audio chunks sequentially through Lavalink
-async function playAudioSequenceLavalink(player, audioUrls) {
+async function playAudioSequenceLavalink(player, audioUrls, guildId) {
   const manager = getManager();
+  const totalChunks = audioUrls.length;
   
   for (let i = 0; i < audioUrls.length; i++) {
     const audioUrl = audioUrls[i];
+    const isLastChunk = (i === totalChunks - 1);
+    
     try {
       // Load the TTS audio URL as a track using searchTrack (same as music commands)
       const track = await searchTrack(audioUrl, null);
@@ -62,6 +65,9 @@ async function playAudioSequenceLavalink(player, audioUrls) {
         // Only call play() for the first chunk; lavalink-client auto-advances
         if (i === 0) {
           console.log(`▶️ Starting playback of first TTS chunk`);
+          // Set volume to 150 (well above baseline of 100) for better mobile client reception
+          player.setVolume(150);
+          console.log(`🔊 Volume set to 150 for TTS playback`);
           player.play();
         } else {
           console.log(`⏳ Chunk ${i + 1} queued, waiting for auto-advance`);
@@ -70,13 +76,27 @@ async function playAudioSequenceLavalink(player, audioUrls) {
         // Wait for track to finish
         const trackEndHandler = () => {
           console.log(`✅ TTS chunk ${i + 1} finished playing`);
+          
+          // If this is the last chunk, disconnect immediately when it ends
+          if (isLastChunk) {
+            console.log(`🔌 Last TTS chunk finished. Initiating immediate disconnect for guild ${guildId}`);
+            manager.removeListener('trackEnd', trackEndHandler);
+            manager.removeListener('trackError', trackErrorHandler);
+            // Disconnect immediately instead of waiting for role assignment
+            if (player && player.connected) {
+              player.destroy().catch(err => {
+                console.error(`⚠️ Error destroying player on trackEnd: ${err.message}`);
+              });
+            }
+          }
+          
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
           resolve();
         };
         
         const trackErrorHandler = (p, track, payload) => {
-          if (p.guildId === player.guildId) {
+          if (p.guildId === guildId) {
             console.error(`❌ TTS chunk ${i + 1} error: ${payload?.exception?.message || 'unknown'}`);
             manager.removeListener('trackEnd', trackEndHandler);
             manager.removeListener('trackError', trackErrorHandler);
@@ -84,14 +104,24 @@ async function playAudioSequenceLavalink(player, audioUrls) {
           }
         };
         
+        // Also listen for queueEnd to catch the final completion
+        const queueEndHandler = (p) => {
+          if (p.guildId === guildId && isLastChunk) {
+            console.log(`🎵 Queue ended for guild ${guildId}. Last chunk was index ${i}.`);
+            manager.removeListener('queueEnd', queueEndHandler);
+          }
+        };
+        
         manager.once('trackEnd', trackEndHandler);
         manager.once('trackError', trackErrorHandler);
+        manager.once('queueEnd', queueEndHandler);
         
-        // Timeout after 30 seconds per chunk
+        // Timeout after 30 seconds per chunk (fallback only)
         setTimeout(() => {
           console.error(`⏱️ TTS chunk ${i + 1} timed out after 30 seconds`);
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
+          manager.removeListener('queueEnd', queueEndHandler);
           reject(new Error('Audio playback timed out after 30 seconds'));
         }, 30000);
       });
@@ -163,7 +193,7 @@ async function handleVoiceGreeting(newState, settings) {
     // Generate and play TTS audio
     try {
       const audioUrls = await generateTTSAudioUrls(welcomeText);
-      await playAudioSequenceLavalink(player, audioUrls);
+      await playAudioSequenceLavalink(player, audioUrls, guildId);
     } catch (audioErr) {
       console.error('⚠️ TTS playback failed, continuing with role assignment:', audioErr.message);
     }
@@ -181,8 +211,8 @@ async function handleVoiceGreeting(newState, settings) {
       }
     }
     
-    // Destroy the player to disconnect from voice
-    if (player) {
+    // Destroy the player to disconnect from voice (only if not already destroyed by trackEnd handler)
+    if (player && player.connected) {
       await player.destroy();
       console.log(`✅ Voice greeting completed and player destroyed for ${member.user.tag}`);
     }
