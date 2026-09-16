@@ -41,7 +41,7 @@ function splitTextIntoChunks(text) {
 }
 
 // Helper: play audio chunks sequentially through Lavalink
-async function playAudioSequenceLavalink(player, audioUrls, guildId) {
+async function playAudioSequenceLavalink(player, audioUrls, guildId, member) {
   const manager = getManager();
   const totalChunks = audioUrls.length;
   
@@ -51,10 +51,17 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId) {
     
     try {
       // Load the TTS audio URL as a track using searchTrack (same as music commands)
+      console.log(`🔍 Searching for track: ${audioUrl.substring(0, 80)}...`);
       const track = await searchTrack(audioUrl, null);
       if (!track) {
         throw new Error(`Failed to load audio URL: ${audioUrl}`);
       }
+      console.log(`✅ Track loaded for chunk ${i + 1}:`, {
+        title: track.info?.title || 'unknown',
+        duration: track.info?.length || 'unknown',
+        isStream: track.info?.isStream || false,
+        uri: track.info?.uri?.substring(0, 60) || 'unknown'
+      });
       
       console.log(`📢 TTS chunk ${i + 1}/${audioUrls.length} loaded, queuing for playback`);
       
@@ -65,16 +72,19 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId) {
         // Only call play() for the first chunk; lavalink-client auto-advances
         if (i === 0) {
           console.log(`▶️ Starting playback of first TTS chunk`);
+          const volumeValue = 150;
+          console.log(`🔊 Setting volume to ${volumeValue}`);
           // Set volume to 150 (well above baseline of 100) for better mobile client reception
-          player.setVolume(150);
-          console.log(`🔊 Volume set to 150 for TTS playback`);
+          player.setVolume(volumeValue);
+          console.log(`🔊 Volume confirmed set to ${volumeValue}`);
+          console.log(`🎬 Calling player.play() for first track:`, track.info?.title || 'unknown');
           player.play();
         } else {
           console.log(`⏳ Chunk ${i + 1} queued, waiting for auto-advance`);
         }
         
         // Wait for track to finish
-        const trackEndHandler = () => {
+        const trackEndHandler = async () => {
           console.log(`✅ TTS chunk ${i + 1} finished playing`);
           
           // If this is the last chunk, disconnect immediately when it ends
@@ -82,11 +92,25 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId) {
             console.log(`🔌 Last TTS chunk finished. Initiating immediate disconnect for guild ${guildId}`);
             manager.removeListener('trackEnd', trackEndHandler);
             manager.removeListener('trackError', trackErrorHandler);
-            // Disconnect immediately instead of waiting for role assignment
+            
+            // Disconnect bot first
             if (player && player.connected) {
-              player.destroy().catch(err => {
+              try {
+                await player.destroy();
+                console.log(`🤖 Bot player destroyed for guild ${guildId}`);
+              } catch (err) {
                 console.error(`⚠️ Error destroying player on trackEnd: ${err.message}`);
-              });
+              }
+            }
+            
+            // Disconnect the member after bot disconnects
+            if (member && member.voice && member.voice.channel) {
+              try {
+                await member.voice.disconnect('Greeting completed');
+                console.log(`👤 Member ${member.user.tag} disconnected after greeting`);
+              } catch (memberErr) {
+                console.error(`⚠️ Failed to disconnect member ${member.user.tag}: ${memberErr.message}`);
+              }
             }
           }
           
@@ -96,6 +120,11 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId) {
         };
         
         const trackErrorHandler = (p, track, payload) => {
+          console.log(`🔴 trackError fired for guild ${guildId}, chunk ${i + 1}:`, {
+            message: payload?.exception?.message || 'unknown error',
+            severity: payload?.exception?.severity || 'unknown',
+            cause: payload?.exception?.cause || 'unknown'
+          });
           if (p.guildId === guildId) {
             console.error(`❌ TTS chunk ${i + 1} error: ${payload?.exception?.message || 'unknown'}`);
             manager.removeListener('trackEnd', trackEndHandler);
@@ -112,16 +141,24 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId) {
           }
         };
         
+        const trackStartHandler = (p, track) => {
+          if (p.guildId === guildId) {
+            console.log(`▶️ trackStart fired: now playing chunk ${i + 1} (${track.info?.title || 'unknown'})`);
+          }
+        };
+        
         manager.once('trackEnd', trackEndHandler);
         manager.once('trackError', trackErrorHandler);
         manager.once('queueEnd', queueEndHandler);
+        manager.once('trackStart', trackStartHandler);
         
-        // Timeout after 30 seconds per chunk (fallback only)
+        // Timeout after 30 seconds per chunk
         setTimeout(() => {
           console.error(`⏱️ TTS chunk ${i + 1} timed out after 30 seconds`);
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
           manager.removeListener('queueEnd', queueEndHandler);
+          manager.removeListener('trackStart', trackStartHandler);
           reject(new Error('Audio playback timed out after 30 seconds'));
         }, 30000);
       });
@@ -186,14 +223,19 @@ async function handleVoiceGreeting(newState, settings) {
     }
     
     // Connect player to voice channel (required before playing audio)
-    if (!player.connected) await player.connect();
+    if (!player.connected) {
+      await player.connect();
+      console.log(`✅ Player connected to voice channel for guild ${guildId}`);
+    } else {
+      console.log(`ℹ️ Player already connected to voice channel for guild ${guildId}`);
+    }
     
     const welcomeText = `Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our team will assist you as soon as possible.`;
     
     // Generate and play TTS audio
     try {
       const audioUrls = await generateTTSAudioUrls(welcomeText);
-      await playAudioSequenceLavalink(player, audioUrls, guildId);
+      await playAudioSequenceLavalink(player, audioUrls, guildId, member);
     } catch (audioErr) {
       console.error('⚠️ TTS playback failed, continuing with role assignment:', audioErr.message);
     }
