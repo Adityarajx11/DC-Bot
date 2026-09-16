@@ -5,7 +5,7 @@ const { initTickets } = require('../lib/ticketStore');
 const { initGuildSettings } = require('../lib/guildSettings');
 
 module.exports = {
-  name: 'ready',
+  name: 'clientReady',
   once: true,
   async execute(client) {
     console.log(`✅ Logged in as ${client.user.tag}`);
