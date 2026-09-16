@@ -68,19 +68,16 @@ async function playAudioSequenceLavalink(player, audioChunks, guildId, member) {
   const manager = getManager();
   const totalChunks = audioChunks.length;
 
-  // Duration-based fallback estimate: ~15s per ~200 chars at normal speech rate, +3s buffer.
-  // Google Translate TTS URLs return isStream: true with no known duration, so trackEnd
-  // never fires; this timeout is the primary completion trigger for each chunk.
-  const MS_PER_200_CHARS = 15000;
-  const TIMEOUT_BUFFER_MS = 3000;
+  // Flat 3-second fallback timeout per chunk. Google Translate TTS URLs return isStream:
+  // true with no known duration, so trackEnd never fires; this timeout is the primary
+  // completion trigger for each chunk.
+  const TIMEOUT_MS = 3000;
 
   for (let i = 0; i < audioChunks.length; i++) {
     const audioUrl = audioChunks[i].url;
-    const chunkChars = audioChunks[i].chars;
     const isLastChunk = (i === totalChunks - 1);
 
-    // Per-chunk timeout based on text length, not a flat value or a whole-sequence timeout
-    const timeoutMs = Math.ceil((chunkChars / 200) * MS_PER_200_CHARS) + TIMEOUT_BUFFER_MS;
+    const timeoutMs = TIMEOUT_MS;
 
     try {
       // Load the TTS audio URL as a track using searchTrack (same as music commands)
