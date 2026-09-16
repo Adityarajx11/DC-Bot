@@ -40,6 +40,29 @@ function splitTextIntoChunks(text) {
   return chunks;
 }
 
+// Helper: disconnect bot player and member from voice (used by both trackEnd and timeout handlers)
+async function disconnectGreeting(player, member, guildId, reason) {
+  // Disconnect bot first
+  if (player && player.connected) {
+    try {
+      await player.destroy();
+      console.log(`🤖 Bot player destroyed for guild ${guildId}${reason ? ` (${reason})` : ''}`);
+    } catch (err) {
+      console.error(`⚠️ Error destroying player: ${err.message}`);
+    }
+  }
+  
+  // Disconnect the member after bot disconnects
+  if (member && member.voice && member.voice.channel) {
+    try {
+      await member.voice.disconnect(`Greeting completed${reason ? ` - ${reason}` : ''}`);
+      console.log(`👤 Member ${member.user.tag} disconnected after greeting${reason ? ` (${reason})` : ''}`);
+    } catch (memberErr) {
+      console.error(`⚠️ Failed to disconnect member ${member.user.tag}: ${memberErr.message}`);
+    }
+  }
+}
+
 // Helper: play audio chunks sequentially through Lavalink
 async function playAudioSequenceLavalink(player, audioUrls, guildId, member) {
   const manager = getManager();
@@ -83,39 +106,31 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId, member) {
           console.log(`⏳ Chunk ${i + 1} queued, waiting for auto-advance`);
         }
         
+        // Flag to track if cleanup has been performed (avoid duplicate cleanup)
+        let cleanupDone = false;
+        
         // Wait for track to finish
         const trackEndHandler = async () => {
-          console.log(`✅ TTS chunk ${i + 1} finished playing`);
+          console.log(`✅ TTS chunk ${i + 1} finished playing (trackEnd event)`);
+          
+          if (cleanupDone) {
+            console.log(`ℹ️ Cleanup already performed for chunk ${i + 1}, skipping duplicate`);
+            return;
+          }
+          cleanupDone = true;
+          
+          manager.removeListener('trackEnd', trackEndHandler);
+          manager.removeListener('trackError', trackErrorHandler);
+          manager.removeListener('queueEnd', queueEndHandler);
+          manager.removeListener('trackStart', trackStartHandler);
+          clearTimeout(timeoutHandle);
           
           // If this is the last chunk, disconnect immediately when it ends
           if (isLastChunk) {
             console.log(`🔌 Last TTS chunk finished. Initiating immediate disconnect for guild ${guildId}`);
-            manager.removeListener('trackEnd', trackEndHandler);
-            manager.removeListener('trackError', trackErrorHandler);
-            
-            // Disconnect bot first
-            if (player && player.connected) {
-              try {
-                await player.destroy();
-                console.log(`🤖 Bot player destroyed for guild ${guildId}`);
-              } catch (err) {
-                console.error(`⚠️ Error destroying player on trackEnd: ${err.message}`);
-              }
-            }
-            
-            // Disconnect the member after bot disconnects
-            if (member && member.voice && member.voice.channel) {
-              try {
-                await member.voice.disconnect('Greeting completed');
-                console.log(`👤 Member ${member.user.tag} disconnected after greeting`);
-              } catch (memberErr) {
-                console.error(`⚠️ Failed to disconnect member ${member.user.tag}: ${memberErr.message}`);
-              }
-            }
+            await disconnectGreeting(player, member, guildId, 'trackEnd event');
           }
           
-          manager.removeListener('trackEnd', trackEndHandler);
-          manager.removeListener('trackError', trackErrorHandler);
           resolve();
         };
         
@@ -126,9 +141,18 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId, member) {
             cause: payload?.exception?.cause || 'unknown'
           });
           if (p.guildId === guildId) {
+            if (cleanupDone) {
+              console.log(`ℹ️ Cleanup already performed for chunk ${i + 1}, skipping duplicate`);
+              return;
+            }
+            cleanupDone = true;
+            
             console.error(`❌ TTS chunk ${i + 1} error: ${payload?.exception?.message || 'unknown'}`);
             manager.removeListener('trackEnd', trackEndHandler);
             manager.removeListener('trackError', trackErrorHandler);
+            manager.removeListener('queueEnd', queueEndHandler);
+            manager.removeListener('trackStart', trackStartHandler);
+            clearTimeout(timeoutHandle);
             reject(new Error(`Track error: ${payload?.exception?.message || 'unknown'}`));
           }
         };
@@ -152,14 +176,30 @@ async function playAudioSequenceLavalink(player, audioUrls, guildId, member) {
         manager.once('queueEnd', queueEndHandler);
         manager.once('trackStart', trackStartHandler);
         
-        // Timeout after 30 seconds per chunk
-        setTimeout(() => {
-          console.error(`⏱️ TTS chunk ${i + 1} timed out after 30 seconds`);
+        // Timeout after 30 seconds per chunk (fallback for streams with unknown duration)
+        // Google Translate TTS URLs return isStream: true with no known duration,
+        // so trackEnd events never fire. This timeout is the primary completion trigger.
+        const timeoutHandle = setTimeout(async () => {
+          console.error(`⏱️ TTS chunk ${i + 1} timed out after 30 seconds (stream with no known duration)`);
+          
+          if (cleanupDone) {
+            console.log(`ℹ️ Cleanup already performed for chunk ${i + 1}, skipping duplicate`);
+            return;
+          }
+          cleanupDone = true;
+          
           manager.removeListener('trackEnd', trackEndHandler);
           manager.removeListener('trackError', trackErrorHandler);
           manager.removeListener('queueEnd', queueEndHandler);
           manager.removeListener('trackStart', trackStartHandler);
-          reject(new Error('Audio playback timed out after 30 seconds'));
+          
+          // If this is the last chunk, disconnect immediately on timeout
+          if (isLastChunk) {
+            console.log(`🔌 Last TTS chunk timed out. Initiating immediate disconnect for guild ${guildId}`);
+            await disconnectGreeting(player, member, guildId, 'timeout');
+          }
+          
+          resolve(); // Resolve instead of reject to continue playback flow
         }, 30000);
       });
     } catch (err) {
@@ -253,7 +293,7 @@ async function handleVoiceGreeting(newState, settings) {
       }
     }
     
-    // Destroy the player to disconnect from voice (only if not already destroyed by trackEnd handler)
+    // Destroy the player to disconnect from voice (only if not already destroyed by trackEnd/timeout handler)
     if (player && player.connected) {
       await player.destroy();
       console.log(`✅ Voice greeting completed and player destroyed for ${member.user.tag}`);
