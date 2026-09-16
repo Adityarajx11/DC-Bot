@@ -158,7 +158,7 @@ async function handleVoiceGreeting(newState, settings) {
     // Connect player to voice channel (required before playing audio)
     if (!player.connected) await player.connect();
     
-    const welcomeText = "Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our[...]
+    const welcomeText = `Welcome to Raven Modz! Please make sure to read the rules, respect everyone, and enjoy your time here. If you ever need help, feel free to talk to us in a ticket, and our team will assist you as soon as possible.`;
     
     // Generate and play TTS audio
     try {
