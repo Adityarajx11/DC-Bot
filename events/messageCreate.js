@@ -1,11 +1,16 @@
 const { getUserXp, upsertUserXp, getLevelRoles, getLevelConfig } = require('../lib/db');
 const { calculateLevelUp, isOnCooldown } = require('../lib/leveling');
+const { getGuildSettings } = require('../lib/guildSettings');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
   name: 'messageCreate',
   async execute(message) {
     if (message.author.bot || !message.guild) return;
+
+    // Owner reaction feature
+    await handleOwnerReact(message);
+
     if (isOnCooldown(message.guild.id, message.author.id)) return;
 
     const existing = await getUserXp(message.guild.id, message.author.id);
@@ -49,3 +54,29 @@ module.exports = {
     }
   },
 };
+
+async function handleOwnerReact(message) {
+  const ownerIds = process.env.OWNER_IDS;
+  if (!ownerIds) return;
+
+  const ownersArray = ownerIds.split(',').map(id => id.trim());
+  if (!ownersArray.includes(message.author.id)) return;
+
+  try {
+    const settings = await getGuildSettings(message.guild.id);
+    const emojis = settings.ownerReactEmojis || [];
+
+    if (emojis.length === 0) return;
+
+    for (const emoji of emojis) {
+      try {
+        await message.react(emoji);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (err) {
+        // Silently ignore individual reaction failures
+      }
+    }
+  } catch (err) {
+    // Silently ignore owner react errors
+  }
+}
