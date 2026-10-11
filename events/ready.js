@@ -1,5 +1,4 @@
 const { startLivePolling } = require('../lib/youtubeLive');
-const { initManager } = require('../lib/lavalink');
 const { initDatabase } = require('../lib/db');
 const { initTickets } = require('../lib/ticketStore');
 const { initGuildSettings } = require('../lib/guildSettings');
@@ -13,6 +12,5 @@ module.exports = {
     await initTickets();
     await initGuildSettings();
     startLivePolling(client);
-    initManager(client);
   },
 };
