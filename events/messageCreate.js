@@ -57,7 +57,10 @@ module.exports = {
 
 async function handleOwnerReact(message) {
   const ownerIds = process.env.OWNER_IDS;
-  if (!ownerIds) return;
+  if (!ownerIds) {
+    console.warn('⚠️  OWNER_IDS not set in .env — owner react feature disabled');
+    return;
+  }
 
   const ownersArray = ownerIds.split(',').map(id => id.trim());
   if (!ownersArray.includes(message.author.id)) return;
@@ -73,7 +76,7 @@ async function handleOwnerReact(message) {
         await message.react(emoji);
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (err) {
-        // Silently ignore individual reaction failures
+        // Silently ignore individual reaction failures (deleted emoji, no permission, etc.)
       }
     }
   } catch (err) {
