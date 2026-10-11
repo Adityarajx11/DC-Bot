@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const { getCases } = require('../lib/db');
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
     const cases = await getCases(interaction.guild.id, target.id);
 
     if (cases.length === 0) {
-      return interaction.reply({ content: `📭 No case history for **${target.tag}**.`, ephemeral: true });
+      return interaction.reply({ content: `📭 No case history for **${target.tag}**.`, flags: MessageFlags.Ephemeral });
     }
 
     const text = cases.map(c =>
@@ -25,6 +25,6 @@ module.exports = {
       .setTitle(`📋 Case History — ${target.tag}`)
       .setDescription(text.slice(0, 4000));
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };

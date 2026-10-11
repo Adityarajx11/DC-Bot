@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, StringSelectMenuBuilder, ActionRowBuilder, MessageFlags } = require('discord.js');
 const { getConfig } = require('../lib/ticketStore');
 
 module.exports = {
@@ -11,38 +11,32 @@ module.exports = {
     const guildId = interaction.guild.id;
     const config = await getConfig(guildId);
 
-    // Check if categories are configured
     if (!config || !config.categories || config.categories.length === 0) {
       return interaction.reply({
         content: '❌ No ticket categories configured yet. Please run `/ticketsetup addcategory` to add categories first.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    // Build the embed
     const embed = new EmbedBuilder()
       .setColor(0x8B0000)
       .setTitle('🎫 RAVEN Support Tickets')
       .setDescription('**Rules**\n• Tickets are for support questions and reports only.\n• One ticket at a time — spamming tickets may get you removed.\n• Stay respectful. Staff can close any ticket.\n\nPick a category below and a private channel will open just for you.');
 
-    // Add banner image if configured
     if (config.banner_url) {
       embed.setImage(config.banner_url);
     }
 
-    // Build the select menu options from configured categories
     const options = config.categories.map((category, index) => {
       const option = {
         label: category.label,
         value: String(index),
       };
 
-      // Add emoji if present
       if (category.emoji) {
         option.emoji = category.emoji;
       }
 
-      // Add description if present
       if (category.description) {
         option.description = category.description;
       }
@@ -57,7 +51,6 @@ module.exports = {
 
     const actionRow = new ActionRowBuilder().addComponents(selectMenu);
 
-    // Post the panel
     await interaction.reply({
       embeds: [embed],
       components: [actionRow],

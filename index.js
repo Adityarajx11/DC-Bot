@@ -2,7 +2,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, MessageFlags } = require('discord.js');
 const { attachLavalink } = require('./lib/lavalink');
 const { GlobalFonts } = require('@napi-rs/canvas');
 
@@ -52,7 +52,7 @@ client.on('interactionCreate', async (interaction) => {
       await command.execute(interaction, client);
     } catch (err) {
       console.error(`Error running /${interaction.commandName}:`, err);
-      const errMsg = { content: '⚠️ Something went wrong running that command.', ephemeral: true };
+      const errMsg = { content: '⚠️ Something went wrong running that command.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(errMsg);
       } else {
@@ -68,7 +68,7 @@ client.on('interactionCreate', async (interaction) => {
       await handleMusicButton(interaction);
     } catch (err) {
       console.error('Music button error:', err);
-      const errMsg = { content: '⚠️ Something went wrong with that button.', ephemeral: true };
+      const errMsg = { content: '⚠️ Something went wrong with that button.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(errMsg).catch(() => {});
       } else {
@@ -83,7 +83,7 @@ client.on('interactionCreate', async (interaction) => {
       await handlePollButton(interaction);
     } catch (err) {
       console.error('Poll button error:', err);
-      const errMsg = { content: '⚠️ Something went wrong with that vote.', ephemeral: true };
+      const errMsg = { content: '⚠️ Something went wrong with that vote.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(errMsg).catch(() => {});
       } else {
@@ -99,7 +99,7 @@ client.on('interactionCreate', async (interaction) => {
       await handleSelfRoleSelect(interaction);
     } catch (err) {
       console.error('Self-role menu error:', err);
-      const errMsg = { content: '⚠️ Something went wrong updating your roles.', ephemeral: true };
+      const errMsg = { content: '⚠️ Something went wrong updating your roles.', flags: MessageFlags.Ephemeral };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(errMsg).catch(() => {});
       } else {
