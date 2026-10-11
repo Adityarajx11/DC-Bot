@@ -20,6 +20,7 @@ const client = new Client({
 });
 
 attachLavalink(client);
+client.on('raw', d => client.lavalink?.sendRawData(d));
 
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
