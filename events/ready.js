@@ -12,5 +12,21 @@ module.exports = {
     await initTickets();
     await initGuildSettings();
     startLivePolling(client);
+
+    // Initialize Lavalink manager
+    if (!client.lavalink) {
+      console.log('❌ Lavalink disabled: LAVALINK_HOST or LAVALINK_PASSWORD not set');
+      return;
+    }
+
+    try {
+      await client.lavalink.init({
+        id: client.user.id,
+        username: client.user.username,
+      });
+      console.log('🎵 Lavalink manager initialised');
+    } catch (e) {
+      console.error('Lavalink init failed:', e);
+    }
   },
 };
